@@ -1,0 +1,21 @@
+<resources>
+    <string name="app_name">逝者如斯夫</string>
+    <string name="default_life_consumed_text">今天的生命将耗在何方？</string>
+    <string name="default_event_selection">I am what I choose to become:</string>
+    <string name="where_time_fly">生命所在：</string>
+    <string name="what_to_do">I am what I choose to become:</string>
+    <string name="default_event_option">请先录入</string>
+    <string name="popup_title_finish">这段生命有价值吗？</string>
+    <string name="popup_cost_time">本次耗时：</string>
+    <string name="popup_total_cost_time">今日本次耗时：</string>
+    <string name="timer_start">开始</string>
+    <string name="timer_stop">结束</string>
+    <string name="timer_pause">暂停</string>
+    <string name="button_ok">我会继续变强</string>
+    <string name="event_programming">编程</string>
+    <string name="event_reading">读书</string>
+    <string name="event_exercise">运动</string>
+    <string name="event_rest">休息</string>
+    <string name="cd_menu">菜单</string>
+    <string name="cd_statistics">统计</string>
+</resources>

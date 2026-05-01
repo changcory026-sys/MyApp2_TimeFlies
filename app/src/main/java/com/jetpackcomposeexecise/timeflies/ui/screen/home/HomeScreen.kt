@@ -34,6 +34,7 @@ import java.util.Locale
 
 @Composable
 fun HomeScreen(
+    onNavigateToManager: () -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
@@ -41,6 +42,7 @@ fun HomeScreen(
     val defaultText = stringResource(R.string.default_event_selection)
 
     HomeScreenContext(
+        onNavigateToManager = onNavigateToManager,
         modifier = modifier,
         selectedDate = uiState.selectedDate,
         dateList = uiState.dateList,
@@ -69,6 +71,7 @@ fun HomeScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreenContext(
+    onNavigateToManager: () -> Unit,
     selectedDate: LocalDate,
     dateList: List<LocalDate>,
     eventRecords: List<EventWithCost>,
@@ -102,13 +105,15 @@ fun HomeScreenContext(
                 .padding(16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            Spacer(modifier = Modifier.height(24.dp))
+
             // 顶部导航与日期
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = { /* TODO */ }) {
+                IconButton(onClick = onNavigateToManager) {
                     Icon(Icons.Default.Menu, contentDescription = stringResource(R.string.cd_menu))
                 }
 
@@ -145,6 +150,14 @@ fun HomeScreenContext(
             }
 
             Spacer(modifier = Modifier.height(32.dp))
+            //标题文本
+            Text(
+                text = stringResource(id = R.string.popup_title_finish),
+                fontSize = 24.sp,
+                color = Color.Black
+            )
+
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Event排行显示区域
             Box(
@@ -274,7 +287,10 @@ fun HomeScreenContext(
                     if (availableEvents.isEmpty()) {
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.default_event_option)) },
-                            onClick = { eventExpanded = false }
+                            onClick = { 
+                                eventExpanded = false
+                                onNavigateToManager() 
+                            }
                         )
                     } else {
                         availableEvents.forEach { eventEntity ->
@@ -481,6 +497,7 @@ fun HomeScreenContext(
 @Composable
 fun HomeScreenPreview() {
     HomeScreenContext(
+        onNavigateToManager = {},
         selectedDate = LocalDate.now(),
         dateList = listOf(LocalDate.now()),
         eventRecords = emptyList(),

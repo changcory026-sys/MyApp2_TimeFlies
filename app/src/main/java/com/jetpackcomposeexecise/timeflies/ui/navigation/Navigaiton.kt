@@ -10,6 +10,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.jetpackcomposeexecise.timeflies.ui.screen.home.HomeScreen
+import com.jetpackcomposeexecise.timeflies.ui.screen.managerstone.AddStoneScreen
+import com.jetpackcomposeexecise.timeflies.ui.screen.managerstone.ManagerStoneScreen
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -19,13 +21,15 @@ object HomeScreenRoute
 object ManagerStoneScreenRoute
 
 @Serializable
+object AddStoneScreenRoute
+
+@Serializable
 data class TimeStatisticsScreenRoute(val currentDate: String)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MyDailyDishApp() {
     val navController = rememberNavController()
-
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
@@ -36,7 +40,21 @@ fun MyDailyDishApp() {
         ) {
             composable<HomeScreenRoute> {
                 HomeScreen(
+                    onNavigateToManager = { navController.navigate(ManagerStoneScreenRoute) },
                     modifier = Modifier.fillMaxSize().padding(bottom = innerPadding.calculateBottomPadding()),
+                )
+            }
+            
+            composable<ManagerStoneScreenRoute> {
+                ManagerStoneScreen(
+                    onBack = { navController.popBackStack() },
+                    onNavigateToAddEvent = { navController.navigate(AddStoneScreenRoute) }
+                )
+            }
+
+            composable<AddStoneScreenRoute> {
+                AddStoneScreen(
+                    onBack = { navController.popBackStack() }
                 )
             }
         }

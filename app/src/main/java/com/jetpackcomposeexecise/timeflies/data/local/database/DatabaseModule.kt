@@ -21,7 +21,8 @@ object DatabaseModule {
             context,
             TimeFliesDatabase::class.java,
             "time_flies_database"
-        ).build()
+        ).fallbackToDestructiveMigration()
+            .build()
     }
 
     @Provides

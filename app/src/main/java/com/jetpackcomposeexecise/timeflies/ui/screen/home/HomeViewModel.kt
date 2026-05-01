@@ -6,6 +6,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.jetpackcomposeexecise.timeflies.data.local.entity.EventEntity
+import com.jetpackcomposeexecise.timeflies.data.local.entity.TimerSessionEntity
 import com.jetpackcomposeexecise.timeflies.data.local.model.DateWithEvents
 import com.jetpackcomposeexecise.timeflies.data.local.model.EventWithCost
 import com.jetpackcomposeexecise.timeflies.data.local.repository.TimeFliesRepository
@@ -54,21 +55,64 @@ class HomeViewModel @Inject constructor(
     private var clockJob: Job? = null
     private var timerJob: Job? = null
     private var recordsJob: Job? = null
+    private var sessionJob: Job? = null
 
     init {
         uiState = uiState.copy(currentTimeDisplay = formatTime(LocalTime.now()))
         startClock()
         observeEvents()
         observeRecords(uiState.selectedDate)
-        
-        // 初始化一些测试数据（如果事件库为空）
-        viewModelScope.launch {
-            repository.getAllEvents().collectLatest { 
-                if (it.isEmpty()) {
-                    listOf("编程", "吃饭", "午休", "散步", "玩手机").forEach { name ->
-                        repository.upsertEvent(name)
+        observeTimerSession()
+    }
+
+    private fun observeTimerSession() {
+        sessionJob?.cancel()
+        sessionJob = viewModelScope.launch {
+            repository.getTimerSession().collectLatest { session ->
+                if (session != null && session.isRunning) {
+                    val elapsed = if (session.startTimeMillis != null) {
+                        (System.currentTimeMillis() - session.startTimeMillis) / 1000
+                    } else 0
+                    
+                    val currentTotalSeconds = session.accumulatedSeconds + elapsed
+                    
+                    uiState = uiState.copy(
+                        isTimerRunning = true,
+                        isTimerPaused = session.startTimeMillis == null,
+                        selectedEvent = session.eventName,
+                        timerSeconds = currentTotalSeconds,
+                        timerDisplay = formatTimer(currentTotalSeconds)
+                    )
+                    
+                    if (session.startTimeMillis != null) {
+                        startUiTimerJob(session.startTimeMillis, session.accumulatedSeconds)
+                    } else {
+                        timerJob?.cancel()
                     }
+                } else {
+                    timerJob?.cancel()
+                    uiState = uiState.copy(
+                        isTimerRunning = false,
+                        isTimerPaused = false,
+                        timerSeconds = 0,
+                        timerDisplay = "00 : 00 : 00"
+                    )
                 }
+            }
+        }
+    }
+
+    private fun startUiTimerJob(startTimeMillis: Long, baseSeconds: Long) {
+        timerJob?.cancel()
+        timerJob = viewModelScope.launch {
+            while (isActive) {
+                val elapsed = (System.currentTimeMillis() - startTimeMillis) / 1000
+                val total = baseSeconds + elapsed
+                uiState = uiState.copy(
+                    timerSeconds = total,
+                    timerDisplay = formatTimer(total)
+                )
+                delay(1000)
             }
         }
     }
@@ -85,7 +129,6 @@ class HomeViewModel @Inject constructor(
         recordsJob?.cancel()
         recordsJob = viewModelScope.launch {
             repository.getDateWithEvents(date.toString()).collectLatest { dateWithEvents ->
-                // 按 costTime 从大到小排序
                 val sortedRecords = dateWithEvents?.events?.sortedByDescending { it.record.costTime } ?: emptyList()
                 uiState = uiState.copy(
                     eventRecords = sortedRecords,
@@ -97,7 +140,6 @@ class HomeViewModel @Inject constructor(
 
     private fun formatLifeConsumed(data: DateWithEvents?): String? {
         if (data == null || data.events.isEmpty()) return null
-        // 排序后的记录展示
         val sorted = data.events.sortedByDescending { it.record.costTime }
         val sb = StringBuilder()
         sorted.forEachIndexed { index, eventWithCost ->
@@ -141,41 +183,44 @@ class HomeViewModel @Inject constructor(
     }
 
     fun startTimer() {
-        if (uiState.isTimerRunning && !uiState.isTimerPaused) return
-        
-        uiState = uiState.copy(isTimerRunning = true, isTimerPaused = false)
-        timerJob?.cancel()
-        timerJob = viewModelScope.launch {
-            while (isActive) {
-                delay(1000)
-                val newSeconds = uiState.timerSeconds + 1
-                uiState = uiState.copy(
-                    timerSeconds = newSeconds,
-                    timerDisplay = formatTimer(newSeconds)
+        val event = uiState.selectedEvent ?: return
+        viewModelScope.launch {
+            repository.updateTimerSession(
+                TimerSessionEntity(
+                    eventName = event,
+                    startTimeMillis = System.currentTimeMillis(),
+                    accumulatedSeconds = uiState.timerSeconds,
+                    isRunning = true
                 )
-            }
+            )
         }
     }
 
     fun pauseTimer() {
-        timerJob?.cancel()
-        uiState = uiState.copy(isTimerPaused = true)
+        viewModelScope.launch {
+            repository.updateTimerSession(
+                TimerSessionEntity(
+                    eventName = uiState.selectedEvent,
+                    startTimeMillis = null,
+                    accumulatedSeconds = uiState.timerSeconds,
+                    isRunning = true
+                )
+            )
+        }
     }
 
     fun stopTimer() {
-        timerJob?.cancel()
-        val durationHours = uiState.timerSeconds.toDouble() / 3600.0
-        val roundedHours = round(durationHours * 10) / 10.0
-        
         val currentEvent = uiState.selectedEvent
         val currentDate = uiState.selectedDate.toString()
+        val finalSeconds = uiState.timerSeconds
 
         viewModelScope.launch {
             if (currentEvent != null) {
-                // 保存数据
+                val durationHours = finalSeconds.toDouble() / 3600.0
+                val roundedHours = round(durationHours * 10) / 10.0
+                
                 repository.saveEventRecord(currentDate, currentEvent, roundedHours)
                 
-                // 获取更新后的累计时长
                 val dateWithEvents = repository.getDateWithEvents(currentDate).firstOrNull()
                 val totalCost = dateWithEvents?.events?.find { it.eventDetails.event == currentEvent }?.record?.costTime ?: roundedHours
 
@@ -183,23 +228,10 @@ class HomeViewModel @Inject constructor(
                     showFinishPopup = true,
                     popupEventName = currentEvent,
                     popupEventCost = roundedHours,
-                    popupEventTotalCost = totalCost,
-                    isTimerRunning = false,
-                    isTimerPaused = false,
-                    timerSeconds = 0,
-                    timerDisplay = "00 : 00 : 00",
-                    lastRecordedDurationHours = roundedHours,
-                    selectedEvent = null
-                )
-            } else {
-                uiState = uiState.copy(
-                    isTimerRunning = false,
-                    isTimerPaused = false,
-                    timerSeconds = 0,
-                    timerDisplay = "00 : 00 : 00",
-                    selectedEvent = null
+                    popupEventTotalCost = totalCost
                 )
             }
+            repository.clearTimerSession()
         }
     }
 
@@ -212,5 +244,6 @@ class HomeViewModel @Inject constructor(
         clockJob?.cancel()
         timerJob?.cancel()
         recordsJob?.cancel()
+        sessionJob?.cancel()
     }
 }

@@ -13,7 +13,6 @@ import com.jetpackcomposeexecise.timeflies.ui.navigation.EventDetailsScreenRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
-import java.time.LocalDate
 import javax.inject.Inject
 
 data class DetailedEvent(

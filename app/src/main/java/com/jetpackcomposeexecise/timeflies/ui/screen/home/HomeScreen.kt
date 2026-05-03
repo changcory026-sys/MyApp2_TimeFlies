@@ -207,14 +207,21 @@ fun HomeScreenContext(
                                         modifier = Modifier
                                             .fillMaxWidth()
                                             .padding(vertical = 4.dp),
-                                        horizontalArrangement = Arrangement.SpaceBetween
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
                                     ) {
-                                        val prefix = if (index < 3) "${index + 1}." else ""
+                                        val isTopThree = index < 3
+                                        val prefix = when (index) {
+                                            0 -> "1️⃣ "
+                                            1 -> "2️⃣ "
+                                            2 -> "3️⃣ "
+                                            else -> "${index + 1}. "
+                                        }
                                         Text(
                                             text = "$prefix${record.eventDetails.event}",
                                             fontSize = 18.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color.Gray
+                                            fontWeight = if (isTopThree) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isTopThree) Color.Black else Color.Gray
                                         )
                                         Text(
                                             text = String.format(
@@ -223,8 +230,8 @@ fun HomeScreenContext(
                                                 record.record.costTime
                                             ),
                                             fontSize = 18.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = Color.Gray
+                                            fontWeight = if (isTopThree) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (isTopThree) Color.Black else Color.Gray
                                         )
                                     }
                                 }

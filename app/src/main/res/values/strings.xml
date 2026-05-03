@@ -13,7 +13,7 @@
     <string name="timer_pause">暂停</string>
     <string name="button_ok">我会继续变强！</string>
     <string name="title_life_event">人生事项</string>
-    <string name="title_add_event">新增事项</string>
+    <string name="title_add_event">人生事项</string>
     <string name="button_add_event">新增</string>
     <string name="button_save">保存</string>
     <string name="hint_add_life_event">新增此类别</string>
@@ -25,4 +25,28 @@
     <string name="event_rest">休息</string>
     <string name="cd_menu">菜单</string>
     <string name="cd_statistics">统计</string>
+    <string name="title_statistics">时间去哪儿了</string>
+    <string name="chart_title">当日生命所在</string>
+    <string name="total_hours_format">总计: %.1f 小时</string>
+    <string name="cd_previous_day">前一天</string>
+    <string name="cd_next_day">后一天</string>
+    <string name="cd_back">返回</string>
+    <string name="no_data_hint">当日暂无记录</string>
+    <string name="chart_pie_title">当日时间分布</string>
+
+    <string name="title_event_details">事项详情</string>
+    <string name="label_view_details">查看详情</string>
+    <string name="label_delete">删除</string>
+
+    <!-- 计时控制按钮 -->
+    <string name="btn_start">开始</string>
+    <string name="btn_stop">停止</string>
+    <string name="btn_pause">暂停</string>
+    <string name="btn_resume">继续</string>
+    <string name="btn_confirm">确认</string>
+
+    <!-- 弹窗标签 -->
+    <string name="popup_label_event">事项：</string>
+    <string name="popup_label_cost">耗时：</string>
+    <string name="popup_label_total">今日累计：</string>
 </resources>

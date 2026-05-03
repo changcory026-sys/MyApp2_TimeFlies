@@ -10,6 +10,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -103,7 +104,13 @@ fun AddStoneScreenContext(
                             value = lifeEventInput,
                             onValueChange = onLifeEventInputChanged,
                             placeholder = { Text(stringResource(R.string.hint_input_life_event), color = Color.Gray) },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .onFocusChanged { focusState ->
+                                    if (focusState.isFocused) {
+                                        setDropdownExpanded(true)
+                                    }
+                                },
                             textStyle = TextStyle(fontSize = 18.sp),
                             shape = RoundedCornerShape(4.dp),
                             colors = OutlinedTextFieldDefaults.colors(
@@ -111,18 +118,19 @@ fun AddStoneScreenContext(
                                 unfocusedBorderColor = Color.Black
                             ),
                             trailingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.ArrowDropDown,
-                                    contentDescription = null,
-                                    modifier = Modifier.padding(end = 4.dp)
-                                )
+                                IconButton(onClick = { setDropdownExpanded(!isDropdownExpanded) }) {
+                                    Icon(
+                                        imageVector = Icons.Default.ArrowDropDown,
+                                        contentDescription = null
+                                    )
+                                }
                             }
                         )
 
                         DropdownMenu(
                             expanded = isDropdownExpanded,
                             onDismissRequest = { setDropdownExpanded(false) },
-                            modifier = Modifier.fillMaxWidth(0.8f) // 宽度调整以防溢出
+                            modifier = Modifier.fillMaxWidth(0.8f) 
                         ) {
                             if (filteredLifeEvents.isEmpty() && lifeEventInput.isNotBlank()) {
                                 DropdownMenuItem(

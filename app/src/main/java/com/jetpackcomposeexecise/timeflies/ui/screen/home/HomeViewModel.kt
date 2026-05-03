@@ -130,12 +130,27 @@ class HomeViewModel @Inject constructor(
         recordsJob = viewModelScope.launch {
             repository.getDateWithEvents(date.toString()).collectLatest { dateWithEvents ->
                 val sortedRecords = dateWithEvents?.events?.sortedByDescending { it.record.costTime } ?: emptyList()
+                val mergedRecords = mergeEventsByEventName(sortedRecords)
                 uiState = uiState.copy(
-                    eventRecords = sortedRecords,
+                    eventRecords = mergedRecords,
                     lifeConsumedText = formatLifeConsumed(dateWithEvents)
                 )
             }
         }
+    }
+
+    private fun mergeEventsByEventName(events: List<EventWithCost>): List<EventWithCost> {
+        return events
+            .groupBy { it.eventDetails.event }
+            .map { (eventName, eventList) ->
+                val totalCostTime = eventList.sumOf { it.record.costTime }
+                val first = eventList.first()
+                EventWithCost(
+                    record = first.record.copy(costTime = totalCostTime),
+                    eventDetails = first.eventDetails
+                )
+            }
+            .sortedByDescending { it.record.costTime }
     }
 
     private fun formatLifeConsumed(data: DateWithEvents?): String? {
@@ -218,9 +233,13 @@ class HomeViewModel @Inject constructor(
             if (currentEvent != null) {
                 val durationHours = finalSeconds.toDouble() / 3600.0
                 val roundedHours = round(durationHours * 10) / 10.0
-                
-                repository.saveEventRecord(currentDate, currentEvent, roundedHours)
-                
+
+                // 计算时间段：当前小时，限制在 8-23 范围内
+                val currentHour = LocalTime.now().hour
+                val timeSlot = currentHour.coerceIn(8, 23)
+
+                repository.saveEventRecord(currentDate, currentEvent, timeSlot, roundedHours)
+
                 val dateWithEvents = repository.getDateWithEvents(currentDate).firstOrNull()
                 val totalCost = dateWithEvents?.events?.find { it.eventDetails.event == currentEvent }?.record?.costTime ?: roundedHours
 

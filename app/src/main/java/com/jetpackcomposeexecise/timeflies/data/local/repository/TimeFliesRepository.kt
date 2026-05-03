@@ -8,6 +8,8 @@ import com.jetpackcomposeexecise.timeflies.data.local.entity.RecordDateEntity
 import com.jetpackcomposeexecise.timeflies.data.local.entity.TimerSessionEntity
 import com.jetpackcomposeexecise.timeflies.data.local.model.DateWithEvents
 import com.jetpackcomposeexecise.timeflies.data.local.model.LifeEventWithEvents
+import com.jetpackcomposeexecise.timeflies.data.local.model.TimeSlotAggregate
+import com.jetpackcomposeexecise.timeflies.data.local.model.TimeSlotWithEvent
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
 import javax.inject.Inject
@@ -93,23 +95,39 @@ class TimeFliesRepository @Inject constructor(
 
     /**
      * 保存耗时记录
+     * @param timeSlot 时间段（8=8:00-9:00, 9=9:00-10:00, ..., 23=23:00-24:00）
      */
-    suspend fun saveEventRecord(dateString: String, eventName: String, costTime: Double) {
+    suspend fun saveEventRecord(dateString: String, eventName: String, timeSlot: Int, costTime: Double) {
         // 1. 获取或创建日期实体
         val dateEntity = timeFliesDao.getDateByString(dateString)
         val dateId = dateEntity?.id ?: timeFliesDao.insertDate(RecordDateEntity(recordDate = dateString))
 
         // 2. 获取事件实体（假设名称唯一）
-        val eventEntity = timeFliesDao.getEventByName(eventName) 
-            ?: return 
+        val eventEntity = timeFliesDao.getEventByName(eventName)
+            ?: return
 
         // 3. 保存记录
         timeFliesDao.insertOrUpdateRecord(
             EventRecordEntity(
                 dateId = dateId,
                 eventId = eventEntity.id,
+                timeSlot = timeSlot,
                 costTime = costTime
             )
         )
     }
+
+    /**
+     * 删除单条耗时记录
+     */
+    suspend fun deleteEventRecord(dateId: Long, eventId: Long, timeSlot: Int) {
+        timeFliesDao.deleteRecord(dateId, eventId, timeSlot)
+    }
+
+    // --- 时间段统计查询 ---
+    fun getTimeSlotsByDate(dateString: String): Flow<List<TimeSlotWithEvent>> =
+        timeFliesDao.getTimeSlotsByDate(dateString)
+
+    fun getTimeSlotAggregates(dateString: String): Flow<List<TimeSlotAggregate>> =
+        timeFliesDao.getTimeSlotAggregates(dateString)
 }

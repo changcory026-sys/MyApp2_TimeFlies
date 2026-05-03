@@ -3,6 +3,7 @@ package com.jetpackcomposeexecise.timeflies.ui.screen.home
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -20,6 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -35,6 +37,8 @@ import java.util.Locale
 @Composable
 fun HomeScreen(
     onNavigateToManager: () -> Unit,
+    onNavigateToStatistics: (LocalDate) -> Unit,
+    onNavigateToDetails: (LocalDate) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: HomeViewModel = hiltViewModel()
 ) {
@@ -43,6 +47,8 @@ fun HomeScreen(
 
     HomeScreenContext(
         onNavigateToManager = onNavigateToManager,
+        onNavigateToStatistics = onNavigateToStatistics,
+        onNavigateToDetails = onNavigateToDetails,
         modifier = modifier,
         selectedDate = uiState.selectedDate,
         dateList = uiState.dateList,
@@ -72,6 +78,8 @@ fun HomeScreen(
 @Composable
 fun HomeScreenContext(
     onNavigateToManager: () -> Unit,
+    onNavigateToStatistics: (LocalDate) -> Unit,
+    onNavigateToDetails: (LocalDate) -> Unit,
     selectedDate: LocalDate,
     dateList: List<LocalDate>,
     eventRecords: List<EventWithCost>,
@@ -144,7 +152,7 @@ fun HomeScreenContext(
                     }
                 }
 
-                IconButton(onClick = { /* TODO */ }) {
+                IconButton(onClick = { onNavigateToStatistics(selectedDate) }) {
                     Icon(Icons.Default.BarChart, contentDescription = stringResource(R.string.cd_statistics))
                 }
             }
@@ -223,6 +231,18 @@ fun HomeScreenContext(
                             }
                         }
                     }
+
+                    // 1. 新增：“查看详情”文本
+                    Text(
+                        text = "查看详情",
+                        fontSize = 14.sp,
+                        color = Color.Gray,
+                        textDecoration = TextDecoration.Underline,
+                        modifier = Modifier
+                            .align(Alignment.End)
+                            .padding(top = 8.dp)
+                            .clickable { onNavigateToDetails(selectedDate) }
+                    )
                 }
             }
 
@@ -243,6 +263,23 @@ fun HomeScreenContext(
                     maxLines = 1,
                     softWrap = false
                 )
+            }
+
+            // 修改：使用固定高度的 Box 包裹计时文本，确保占位空间固定，不影响排行区域
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(28.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                if (isTimerRunning || isTimerPaused) {
+                    Text(
+                        text = timerDisplay.replace(" ", ""), // 确保格式为 00:00:00
+                        fontSize = 18.sp,
+                        color = Color(0xFF9162FA),
+                        fontWeight = FontWeight.Medium
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.weight(0.2f))
@@ -307,15 +344,6 @@ fun HomeScreenContext(
             }
 
             Spacer(modifier = Modifier.height(24.dp))
-
-            // 倒计时文字
-            Text(
-                text = timerDisplay,
-                fontSize = 32.sp,
-                fontWeight = FontWeight.Medium,
-                color = Color(0xFF9162FA),
-                modifier = Modifier.alpha(if (timerSeconds > 0) 1f else 0f)
-            )
 
             Spacer(modifier = Modifier.height(36.dp))
 
@@ -498,6 +526,8 @@ fun HomeScreenContext(
 fun HomeScreenPreview() {
     HomeScreenContext(
         onNavigateToManager = {},
+        onNavigateToStatistics = {},
+        onNavigateToDetails = {},
         selectedDate = LocalDate.now(),
         dateList = listOf(LocalDate.now()),
         eventRecords = emptyList(),

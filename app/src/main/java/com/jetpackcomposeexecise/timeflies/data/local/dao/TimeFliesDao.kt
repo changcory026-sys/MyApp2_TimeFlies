@@ -8,6 +8,8 @@ import com.jetpackcomposeexecise.timeflies.data.local.entity.RecordDateEntity
 import com.jetpackcomposeexecise.timeflies.data.local.entity.TimerSessionEntity
 import com.jetpackcomposeexecise.timeflies.data.local.model.DateWithEvents
 import com.jetpackcomposeexecise.timeflies.data.local.model.LifeEventWithEvents
+import com.jetpackcomposeexecise.timeflies.data.local.model.TimeSlotAggregate
+import com.jetpackcomposeexecise.timeflies.data.local.model.TimeSlotWithEvent
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -59,8 +61,25 @@ interface TimeFliesDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrUpdateRecord(record: EventRecordEntity)
 
-    @Query("DELETE FROM event_record_table WHERE dateId = :dateId AND eventId = :eventId")
-    suspend fun deleteRecord(dateId: Long, eventId: Long)
+    @Query("DELETE FROM event_record_table WHERE dateId = :dateId AND eventId = :eventId AND timeSlot = :timeSlot")
+    suspend fun deleteRecord(dateId: Long, eventId: Long, timeSlot: Int)
+
+    @Transaction
+    @Query("""
+        SELECT * FROM event_record_table
+        WHERE dateId = (SELECT id FROM record_date_table WHERE recordDate = :dateString)
+        ORDER BY timeSlot ASC, costTime DESC
+    """)
+    fun getTimeSlotsByDate(dateString: String): Flow<List<TimeSlotWithEvent>>
+
+    @Query("""
+        SELECT timeSlot, SUM(costTime) as totalHours
+        FROM event_record_table
+        WHERE dateId = (SELECT id FROM record_date_table WHERE recordDate = :dateString)
+        GROUP BY timeSlot
+        ORDER BY timeSlot ASC
+    """)
+    fun getTimeSlotAggregates(dateString: String): Flow<List<TimeSlotAggregate>>
 
     // --- Timer Session ---
     @Insert(onConflict = OnConflictStrategy.REPLACE)

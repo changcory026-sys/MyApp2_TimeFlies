@@ -17,7 +17,9 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.time.Duration
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -145,6 +147,7 @@ class HomeViewModel @Inject constructor(
             .map { (eventName, eventList) ->
                 val totalCostTime = eventList.sumOf { it.record.costTime }
                 val first = eventList.first()
+                // 返回合并后的记录，costTime 为总和
                 EventWithCost(
                     record = first.record.copy(costTime = totalCostTime),
                     eventDetails = first.eventDetails
@@ -155,14 +158,15 @@ class HomeViewModel @Inject constructor(
 
     private fun formatLifeConsumed(data: DateWithEvents?): String? {
         if (data == null || data.events.isEmpty()) return null
-        val sorted = data.events.sortedByDescending { it.record.costTime }
+        // 同样使用合并后的数据进行格式化显示
+        val merged = mergeEventsByEventName(data.events)
         val sb = StringBuilder()
-        sorted.forEachIndexed { index, eventWithCost ->
+        merged.forEachIndexed { index, eventWithCost ->
             val prefix = if (index < 3) "${index + 1}." else ""
             sb.append("$prefix${eventWithCost.eventDetails.event}")
             sb.append("   ")
             sb.append(String.format(Locale.getDefault(), "%.1fH", eventWithCost.record.costTime))
-            if (index < sorted.size - 1) sb.append("\n")
+            if (index < merged.size - 1) sb.append("\n")
         }
         return sb.toString()
     }
@@ -230,24 +234,44 @@ class HomeViewModel @Inject constructor(
         val finalSeconds = uiState.timerSeconds
 
         viewModelScope.launch {
-            if (currentEvent != null) {
-                val durationHours = finalSeconds.toDouble() / 3600.0
-                val roundedHours = round(durationHours * 10) / 10.0
+            if (currentEvent != null && finalSeconds > 0) {
+                // 将总耗时按跨越的小时段进行分配
+                var remainingMillis = finalSeconds * 1000
+                var currentEndTime = LocalDateTime.now()
 
-                // 计算时间段：当前小时，限制在 8-23 范围内
-                val currentHour = LocalTime.now().hour
-                val timeSlot = currentHour.coerceIn(8, 23)
+                while (remainingMillis > 0) {
+                    val startOfHour = currentEndTime.withMinute(0).withSecond(0).withNano(0)
+                    var millisInThisSlot = Duration.between(startOfHour, currentEndTime).toMillis()
+                    
+                    if (millisInThisSlot == 0L) {
+                        // 刚好在整点结束，或者已经处理完当前小时，进入前一个小时
+                        millisInThisSlot = 3600000L
+                        val slot = (currentEndTime.hour - 1 + 24) % 24
+                        val toRecord = minOf(remainingMillis, millisInThisSlot)
+                        repository.saveEventRecord(currentDate, currentEvent, slot, toRecord.toDouble() / 3600000.0)
+                        remainingMillis -= toRecord
+                        currentEndTime = startOfHour.minusHours(1)
+                    } else {
+                        // 处理当前小时内的部分时间段
+                        val slot = currentEndTime.hour
+                        val toRecord = minOf(remainingMillis, millisInThisSlot)
+                        repository.saveEventRecord(currentDate, currentEvent, slot, toRecord.toDouble() / 3600000.0)
+                        remainingMillis -= toRecord
+                        currentEndTime = startOfHour
+                    }
+                }
 
-                repository.saveEventRecord(currentDate, currentEvent, timeSlot, roundedHours)
-
+                // 计算当日该 Event 的总耗时，用于弹窗显示
                 val dateWithEvents = repository.getDateWithEvents(currentDate).firstOrNull()
-                val totalCost = dateWithEvents?.events?.find { it.eventDetails.event == currentEvent }?.record?.costTime ?: roundedHours
+                val totalCost = dateWithEvents?.events
+                    ?.filter { it.eventDetails.event == currentEvent }
+                    ?.sumOf { it.record.costTime } ?: (finalSeconds.toDouble() / 3600.0)
 
                 uiState = uiState.copy(
                     showFinishPopup = true,
                     popupEventName = currentEvent,
-                    popupEventCost = roundedHours,
-                    popupEventTotalCost = totalCost
+                    popupEventCost = round((finalSeconds.toDouble() / 3600.0) * 10) / 10.0,
+                    popupEventTotalCost = round(totalCost * 10) / 10.0
                 )
             }
             repository.clearTimerSession()

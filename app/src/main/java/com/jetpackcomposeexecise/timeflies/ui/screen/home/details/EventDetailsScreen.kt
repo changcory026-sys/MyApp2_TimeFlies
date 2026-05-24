@@ -87,7 +87,8 @@ fun EventDetailsScreen(
                 ) {
                     items(
                         items = uiState.events,
-                        key = { "${it.record.record.dateId}-${it.record.record.eventId}-${it.record.record.timeSlot}" }
+                        // 修改：使用 EventRecordEntity 的主键 id 作为唯一 key，解决重复 Key 导致的崩溃问题
+                        key = { it.record.record.id }
                     ) { item ->
                         SwipeToDeleteEventItem(
                             event = item,

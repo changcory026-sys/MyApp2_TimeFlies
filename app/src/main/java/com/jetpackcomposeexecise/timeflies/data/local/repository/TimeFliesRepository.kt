@@ -8,7 +8,6 @@ import com.jetpackcomposeexecise.timeflies.data.local.entity.RecordDateEntity
 import com.jetpackcomposeexecise.timeflies.data.local.entity.TimerSessionEntity
 import com.jetpackcomposeexecise.timeflies.data.local.model.DateWithEvents
 import com.jetpackcomposeexecise.timeflies.data.local.model.LifeEventWithEvents
-import com.jetpackcomposeexecise.timeflies.data.local.model.TimeSlotAggregate
 import com.jetpackcomposeexecise.timeflies.data.local.model.TimeSlotWithEvent
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
@@ -94,19 +93,17 @@ class TimeFliesRepository @Inject constructor(
         timeFliesDao.getDateWithEvents(dateString)
 
     /**
-     * 保存耗时记录
-     * @param timeSlot 时间段（8=8:00-9:00, 9=9:00-10:00, ..., 23=23:00-24:00）
+     * 保存耗时记录。
+     * 修改逻辑：不再合并记录，而是每次产生一个新的子记录，以便在详情页展示历史。
      */
     suspend fun saveEventRecord(dateString: String, eventName: String, timeSlot: Int, costTime: Double) {
-        // 1. 获取或创建日期实体
         val dateEntity = timeFliesDao.getDateByString(dateString)
         val dateId = dateEntity?.id ?: timeFliesDao.insertDate(RecordDateEntity(recordDate = dateString))
 
-        // 2. 获取事件实体（假设名称唯一）
         val eventEntity = timeFliesDao.getEventByName(eventName)
             ?: return
 
-        // 3. 保存记录
+        // 始终插入新记录，利用 PrimaryKey(autoGenerate = true)
         timeFliesDao.insertOrUpdateRecord(
             EventRecordEntity(
                 dateId = dateId,
@@ -118,16 +115,14 @@ class TimeFliesRepository @Inject constructor(
     }
 
     /**
-     * 删除单条耗时记录
+     * 删除单条耗时记录。
+     * 修改逻辑：改用主键 ID 删除，以支持删除特定的子耗时。
      */
-    suspend fun deleteEventRecord(dateId: Long, eventId: Long, timeSlot: Int) {
-        timeFliesDao.deleteRecord(dateId, eventId, timeSlot)
+    suspend fun deleteEventRecordById(recordId: Long) {
+        timeFliesDao.deleteRecordById(recordId)
     }
 
     // --- 时间段统计查询 ---
     fun getTimeSlotsByDate(dateString: String): Flow<List<TimeSlotWithEvent>> =
         timeFliesDao.getTimeSlotsByDate(dateString)
-
-    fun getTimeSlotAggregates(dateString: String): Flow<List<TimeSlotAggregate>> =
-        timeFliesDao.getTimeSlotAggregates(dateString)
 }

@@ -15,33 +15,20 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.TextRange
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
-import androidx.compose.ui.text.input.TextFieldValue
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -57,14 +44,13 @@ import kotlin.math.roundToInt
 @Composable
 fun ManagerStoneScreen(
     onBack: () -> Unit,
-    onNavigateToAddEvent: () -> Unit,
+    onNavigateToAddEvent: (String?, String?) -> Unit,
     modifier: Modifier = Modifier,
     viewModel: ManagerStoneViewModel = hiltViewModel()
 ) {
     val uiState = viewModel.uiState
     val focusManager = LocalFocusManager.current
 
-    // 1. 全局监听：点击空白处清除焦点并收起侧滑图标
     Box(modifier = modifier
         .fillMaxSize()
         .pointerInput(Unit) {
@@ -77,8 +63,6 @@ fun ManagerStoneScreen(
             lifeEvents = uiState.lifeEventsWithEvents,
             onBack = onBack,
             onAddEvent = onNavigateToAddEvent,
-            onUpdateLifeEvent = viewModel::updateLifeEvent,
-            onUpdateEvent = viewModel::updateEvent,
             onDeleteEvent = viewModel::deleteEvent
         )
     }
@@ -89,9 +73,7 @@ fun ManagerStoneScreen(
 fun ManagerStoneScreenContext(
     lifeEvents: List<LifeEventWithEvents>,
     onBack: () -> Unit,
-    onAddEvent: () -> Unit,
-    onUpdateLifeEvent: (LifeEventEntity, String) -> Unit,
-    onUpdateEvent: (EventEntity, String) -> Unit,
+    onAddEvent: (String?, String?) -> Unit,
     onDeleteEvent: (EventEntity) -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -154,9 +136,16 @@ fun ManagerStoneScreenContext(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            LifeEventHeaderItem(lifeEvent = group.lifeEvent, onUpdate = onUpdateLifeEvent)
+                            LifeEventHeaderItem(
+                                lifeEvent = group.lifeEvent, 
+                                onEditClick = { onAddEvent(group.lifeEvent.lifeEvent, null) }
+                            )
                             group.events.forEach { eventEntity ->
-                                EventItem(event = eventEntity, onUpdate = onUpdateEvent, onDelete = onDeleteEvent)
+                                EventItem(
+                                    event = eventEntity, 
+                                    onEditClick = { onAddEvent(group.lifeEvent.lifeEvent, eventEntity.event) },
+                                    onDelete = onDeleteEvent
+                                )
                             }
                         }
                     }
@@ -166,7 +155,7 @@ fun ManagerStoneScreenContext(
             Spacer(modifier = Modifier.height(24.dp))
 
             Button(
-                onClick = onAddEvent,
+                onClick = { onAddEvent(null, null) },
                 modifier = Modifier.fillMaxWidth(0.7f).height(56.dp),
                 shape = RoundedCornerShape(4.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Color.White),
@@ -180,153 +169,102 @@ fun ManagerStoneScreenContext(
 }
 
 @Composable
-fun LifeEventHeaderItem(lifeEvent: LifeEventEntity, onUpdate: (LifeEventEntity, String) -> Unit) {
-    var isEditing by remember { mutableStateOf(false) }
-    var textValue by remember { mutableStateOf(TextFieldValue(lifeEvent.lifeEvent)) }
+fun LifeEventHeaderItem(lifeEvent: LifeEventEntity, onEditClick: () -> Unit) {
     var offsetX by remember { mutableFloatStateOf(0f) }
-    val animatedOffset by animateFloatAsState(targetValue = offsetX)
+    val animatedOffset by animateFloatAsState(targetValue = offsetX, label = "header_offset")
     
-    val focusRequester = remember { FocusRequester() }
-    val keyboardController = LocalSoftwareKeyboardController.current
-    val focusManager = LocalFocusManager.current
     val density = LocalDensity.current
-    val actionWidth = with(density) { 60.dp.toPx() }
-
-    // 当失去焦点或退出编辑时，重置侧滑位置
-    LaunchedEffect(isEditing) {
-        if (!isEditing) offsetX = 0f
-    }
+    val actionWidthPx = with(density) { 60.dp.toPx() }
 
     Box(
         modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min).padding(vertical = 8.dp)
     ) {
-        // 背景操作区
-        Box(
-            modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight().width(60.dp)
-                .background(Color(0xFFE3F2FD), RoundedCornerShape(4.dp))
-                .clickable {
-                    isEditing = true
-                    textValue = TextFieldValue(lifeEvent.lifeEvent, TextRange(lifeEvent.lifeEvent.length))
-                    offsetX = 0f // 点击编辑后自动收回背景
-                },
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(Icons.Default.Edit, contentDescription = null, tint = Color(0xFF2196F3))
-        }
-
-        // 前景内容区
+        // 1. 前景内容区 (先定义，渲染在底层)
         Box(
             modifier = Modifier.offset { IntOffset(animatedOffset.roundToInt(), 0) }
                 .fillMaxWidth().background(MaterialTheme.colorScheme.background)
                 .draggable(
                     orientation = Orientation.Horizontal,
-                    enabled = !isEditing,
                     state = rememberDraggableState { delta ->
-                        val newOffset = (offsetX + delta).coerceIn(-actionWidth, 0f)
+                        val newOffset = (offsetX + delta).coerceIn(-actionWidthPx, 0f)
                         offsetX = newOffset
                     },
                     onDragStopped = {
-                        // 阈值调整为 1/3
-                        offsetX = if (offsetX < -actionWidth / 3) -actionWidth else 0f
+                        offsetX = if (offsetX < -actionWidthPx / 3) -actionWidthPx else 0f
                     }
                 ),
             contentAlignment = Alignment.Center
         ) {
-            if (isEditing) {
-                BasicTextField(
-                    value = textValue,
-                    onValueChange = { textValue = it },
-                    textStyle = TextStyle(fontSize = 20.sp, color = Color.Gray, textAlign = TextAlign.Center, fontWeight = FontWeight.Bold),
-                    modifier = Modifier.focusRequester(focusRequester)
-                        .onFocusChanged { if (!it.isFocused && isEditing) { isEditing = false; onUpdate(lifeEvent, textValue.text) } },
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() })
-                )
-                LaunchedEffect(Unit) { focusRequester.requestFocus(); keyboardController?.show() }
-            } else {
-                Text(text = "------ ${lifeEvent.lifeEvent} ------", fontSize = 20.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
+            Text(text = "------ ${lifeEvent.lifeEvent} ------", fontSize = 20.sp, color = Color.Gray, fontWeight = FontWeight.Bold)
+        }
+
+        // 2. 操作区 (后定义，渲染在顶层，确保可点击)
+        if (offsetX < 0f) {
+            Box(
+                modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight().width(60.dp)
+                    .background(Color(0xFFE3F2FD), RoundedCornerShape(4.dp))
+                    .clickable {
+                        offsetX = 0f
+                        onEditClick() 
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.Edit, contentDescription = null, tint = Color(0xFF2196F3))
             }
         }
     }
 }
 
 @Composable
-fun EventItem(event: EventEntity, onUpdate: (EventEntity, String) -> Unit, onDelete: (EventEntity) -> Unit) {
-    var isEditing by remember { mutableStateOf(false) }
-    var textValue by remember { mutableStateOf(TextFieldValue(event.event)) }
+fun EventItem(event: EventEntity, onEditClick: () -> Unit, onDelete: (EventEntity) -> Unit) {
     var offsetX by remember { mutableFloatStateOf(0f) }
-    val animatedOffset by animateFloatAsState(targetValue = offsetX)
+    val animatedOffset by animateFloatAsState(targetValue = offsetX, label = "event_offset")
 
-    val focusRequester = remember { FocusRequester() }
-    val keyboardController = LocalSoftwareKeyboardController.current
-    val focusManager = LocalFocusManager.current
     val density = LocalDensity.current
-    val actionWidth = with(density) { 120.dp.toPx() }
-
-    // 当失去焦点或退出编辑时，重置侧滑位置
-    LaunchedEffect(isEditing) {
-        if (!isEditing) offsetX = 0f
-    }
+    val actionWidthPx = with(density) { 120.dp.toPx() }
 
     Box(
         modifier = Modifier.fillMaxWidth().height(IntrinsicSize.Min).padding(vertical = 4.dp)
     ) {
-        // 背景操作区
-        Row(modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight().width(120.dp)) {
-            Box(
-                modifier = Modifier.weight(1f).fillMaxHeight().background(Color(0xFFE3F2FD))
-                    .clickable { 
-                        if (isEditing) {
-                            isEditing = false
-                            onUpdate(event, textValue.text)
-                        } else {
-                            isEditing = true
-                            textValue = TextFieldValue(event.event, TextRange(event.event.length))
-                        }
-                    },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(if (isEditing) Icons.Default.Check else Icons.Default.Edit, contentDescription = null, tint = Color(0xFF2196F3))
-            }
-            Box(
-                modifier = Modifier.weight(1f).fillMaxHeight().background(Color(0xFFFFEBEE))
-                    .clickable { onDelete(event); offsetX = 0f },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Default.Delete, contentDescription = null, tint = Color.Red)
-            }
-        }
-
-        // 前景内容区
+        // 1. 前景内容区 (底层)
         Box(
             modifier = Modifier.offset { IntOffset(animatedOffset.roundToInt(), 0) }
                 .fillMaxWidth().background(MaterialTheme.colorScheme.background)
                 .border(1.dp, Color.Black).padding(16.dp)
                 .draggable(
                     orientation = Orientation.Horizontal,
-                    enabled = !isEditing,
                     state = rememberDraggableState { delta ->
-                        val newOffset = (offsetX + delta).coerceIn(-actionWidth, 0f)
+                        val newOffset = (offsetX + delta).coerceIn(-actionWidthPx, 0f)
                         offsetX = newOffset
                     },
                     onDragStopped = {
-                        // 阈值调整为 1/3
-                        offsetX = if (offsetX < -actionWidth / 3) -actionWidth else 0f
+                        offsetX = if (offsetX < -actionWidthPx / 3) -actionWidthPx else 0f
                     }
                 )
         ) {
-            if (isEditing) {
-                BasicTextField(
-                    value = textValue,
-                    onValueChange = { textValue = it },
-                    textStyle = TextStyle(fontSize = 18.sp, color = Color.Black),
-                    modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() })
-                )
-                LaunchedEffect(Unit) { focusRequester.requestFocus(); keyboardController?.show() }
-            } else {
-                Text(text = event.event, fontSize = 18.sp, color = Color.Black)
+            Text(text = event.event, fontSize = 18.sp, color = Color.Black)
+        }
+
+        // 2. 操作区 (顶层)
+        if (offsetX < 0f) {
+            Row(modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight().width(120.dp)) {
+                Box(
+                    modifier = Modifier.weight(1f).fillMaxHeight().background(Color(0xFFE3F2FD))
+                        .clickable { 
+                            offsetX = 0f
+                            onEditClick() 
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.Edit, contentDescription = null, tint = Color(0xFF2196F3))
+                }
+                Box(
+                    modifier = Modifier.weight(1f).fillMaxHeight().background(Color(0xFFFFEBEE))
+                        .clickable { onDelete(event); offsetX = 0f },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Default.Delete, contentDescription = null, tint = Color.Red)
+                }
             }
         }
     }
@@ -335,5 +273,5 @@ fun EventItem(event: EventEntity, onUpdate: (EventEntity, String) -> Unit, onDel
 @Preview(showBackground = true)
 @Composable
 fun ManagerStoneScreenPreview() {
-    ManagerStoneScreenContext(emptyList(), {}, {}, { _, _ -> }, { _, _ -> }, {})
+    ManagerStoneScreenContext(emptyList(), {}, {_,_ ->}, {})
 }

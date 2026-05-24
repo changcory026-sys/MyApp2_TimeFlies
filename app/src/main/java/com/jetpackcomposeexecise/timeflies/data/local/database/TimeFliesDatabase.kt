@@ -17,7 +17,7 @@ import com.jetpackcomposeexecise.timeflies.data.local.entity.TimerSessionEntity
         LifeEventEntity::class,
         TimerSessionEntity::class
     ],
-    version = 4,
+    version = 6,
     exportSchema = false
 )
 abstract class TimeFliesDatabase : RoomDatabase() {

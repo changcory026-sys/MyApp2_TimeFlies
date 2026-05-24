@@ -1,6 +1,7 @@
 package com.jetpackcomposeexecise.timeflies.ui.screen.managerstone
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -12,6 +13,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -35,6 +38,7 @@ fun AddStoneScreen(
         filteredLifeEvents = uiState.filteredLifeEvents,
         isDropdownExpanded = uiState.isDropdownExpanded,
         isSaveEnabled = uiState.isSaveEnabled,
+        isEditMode = uiState.isEditMode,
         onLifeEventInputChanged = viewModel::onLifeEventInputChanged,
         onEventInputChanged = viewModel::onEventInputChanged,
         onLifeEventSelected = viewModel::onLifeEventSelected,
@@ -54,6 +58,7 @@ fun AddStoneScreenContext(
     filteredLifeEvents: List<com.jetpackcomposeexecise.timeflies.data.local.entity.LifeEventEntity>,
     isDropdownExpanded: Boolean,
     isSaveEnabled: Boolean,
+    isEditMode: Boolean,
     onLifeEventInputChanged: (String) -> Unit,
     onEventInputChanged: (String) -> Unit,
     onLifeEventSelected: (String) -> Unit,
@@ -63,12 +68,15 @@ fun AddStoneScreenContext(
     setDropdownExpanded: (Boolean) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val focusManager = LocalFocusManager.current
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        text = stringResource(R.string.title_add_event),
+                        text = if (isEditMode) stringResource(R.string.button_update) + stringResource(R.string.title_life_event) 
+                               else stringResource(R.string.title_add_event),
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Bold
                     )
@@ -86,6 +94,12 @@ fun AddStoneScreenContext(
             modifier = Modifier
                 .padding(innerPadding)
                 .fillMaxSize()
+                .imePadding()
+                .pointerInput(Unit) {
+                    detectTapGestures(onTap = {
+                        focusManager.clearFocus()
+                    })
+                }
                 .padding(16.dp)
         ) {
             Column(
@@ -164,7 +178,7 @@ fun AddStoneScreenContext(
                 }
             }
 
-            // 3. 【保存】按钮
+            // 3. 【保存/修改】按钮
             Button(
                 onClick = onSave,
                 enabled = isSaveEnabled,
@@ -181,7 +195,7 @@ fun AddStoneScreenContext(
                 border = BorderStroke(1.dp, if (isSaveEnabled) Color(0xFF9162FA) else Color.LightGray)
             ) {
                 Text(
-                    text = stringResource(R.string.button_save),
+                    text = if (isEditMode) stringResource(R.string.button_update) else stringResource(R.string.button_save),
                     fontSize = 20.sp,
                     color = if (isSaveEnabled) Color(0xFF9162FA) else Color.LightGray
                 )
@@ -199,6 +213,7 @@ fun AddStoneScreenPreview() {
         filteredLifeEvents = emptyList(),
         isDropdownExpanded = false,
         isSaveEnabled = false,
+        isEditMode = false,
         onLifeEventInputChanged = {},
         onEventInputChanged = {},
         onLifeEventSelected = {},

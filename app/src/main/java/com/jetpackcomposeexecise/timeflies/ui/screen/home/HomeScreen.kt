@@ -386,7 +386,7 @@ fun HomeScreenContext(
                             border = BorderStroke(1.dp, Color(0xFF9162FA)),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF9162FA))
                         ) {
-                            Text(text = stringResource(R.string.timer_start), fontSize = 20.sp)
+                            Text(text = stringResource(R.string.btn_resume), fontSize = 20.sp)
                         }
                     } else {
                         OutlinedButton(
@@ -450,7 +450,7 @@ fun HomeScreenContext(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                text = stringResource(R.string.popup_title_finish),
+                                text = stringResource(R.string.popup_title_finish2),
                                 fontSize = 20.sp,
                                 color = Color.Gray,
                                 textAlign = TextAlign.Center

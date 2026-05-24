@@ -61,14 +61,14 @@ interface TimeFliesDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrUpdateRecord(record: EventRecordEntity)
 
-    @Query("DELETE FROM event_record_table WHERE dateId = :dateId AND eventId = :eventId AND timeSlot = :timeSlot")
-    suspend fun deleteRecord(dateId: Long, eventId: Long, timeSlot: Int)
+    @Query("DELETE FROM event_record_table WHERE id = :recordId")
+    suspend fun deleteRecordById(recordId: Long)
 
     @Transaction
     @Query("""
         SELECT * FROM event_record_table
         WHERE dateId = (SELECT id FROM record_date_table WHERE recordDate = :dateString)
-        ORDER BY timeSlot ASC, costTime DESC
+        ORDER BY timeSlot ASC, id DESC
     """)
     fun getTimeSlotsByDate(dateString: String): Flow<List<TimeSlotWithEvent>>
 

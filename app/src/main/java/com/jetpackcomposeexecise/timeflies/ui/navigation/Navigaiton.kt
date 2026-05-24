@@ -9,6 +9,7 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.toRoute
 import com.jetpackcomposeexecise.timeflies.ui.screen.home.HomeScreen
 import com.jetpackcomposeexecise.timeflies.ui.screen.home.details.EventDetailsScreen
 import com.jetpackcomposeexecise.timeflies.ui.screen.managerstone.AddStoneScreen
@@ -23,7 +24,10 @@ object HomeScreenRoute
 object ManagerStoneScreenRoute
 
 @Serializable
-object AddStoneScreenRoute
+data class AddStoneScreenRoute(
+    val originalLifeEvent: String? = null,
+    val originalEvent: String? = null
+)
 
 @Serializable
 data class TimeStatisticsScreenRoute(val currentDate: String)
@@ -55,7 +59,9 @@ fun MyDailyDishApp() {
             composable<ManagerStoneScreenRoute> {
                 ManagerStoneScreen(
                     onBack = { navController.popBackStack() },
-                    onNavigateToAddEvent = { navController.navigate(AddStoneScreenRoute) }
+                    onNavigateToAddEvent = { lifeEvent, event -> 
+                        navController.navigate(AddStoneScreenRoute(lifeEvent, event)) 
+                    }
                 )
             }
 

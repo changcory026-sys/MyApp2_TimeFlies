@@ -48,13 +48,14 @@ class EventDetailsViewModel @Inject constructor(
                 val rawEvents = dateWithEvents?.events ?: emptyList()
                 val total = rawEvents.sumOf { it.record.costTime }
                 
+                // 详情页展示的是“子耗时”，即每一条记录
                 val detailedEvents = rawEvents.map { event ->
                     DetailedEvent(
                         record = event,
                         timeRange = formatTimeSlot(event.record.timeSlot),
                         percentage = if (total > 0) (event.record.costTime / total * 100).toInt() else 0
                     )
-                }.sortedBy { it.record.record.timeSlot } // 按时间顺序排列
+                }.sortedByDescending { it.record.record.id } // 按记录顺序倒序（最新的在前）
 
                 uiState = uiState.copy(
                     events = detailedEvents,
@@ -72,11 +73,8 @@ class EventDetailsViewModel @Inject constructor(
 
     fun deleteRecord(event: DetailedEvent) {
         viewModelScope.launch {
-            repository.deleteEventRecord(
-                dateId = event.record.record.dateId,
-                eventId = event.record.record.eventId,
-                timeSlot = event.record.record.timeSlot
-            )
+            // 使用新增的主键 ID 删除具体的子耗时记录
+            repository.deleteEventRecordById(event.record.record.id)
         }
     }
 }

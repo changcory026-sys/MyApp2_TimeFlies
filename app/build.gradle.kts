@@ -10,9 +10,7 @@ plugins {
 
 android {
     namespace = "com.jetpackcomposeexecise.timeflies"
-    compileSdk {
-        version = release(36)
-    }
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.jetpackcomposeexecise.timeflies"
@@ -63,15 +61,15 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
     // ... 默认的 Compose 依赖保持不变
-    val room_version = "2.6.1"
-    val hilt_version = "2.55"
+    val roomVersion = "2.6.1"
+    val hiltVersion = "2.55"
     // Room 依赖
-    implementation("androidx.room:room-runtime:$room_version")
-    implementation("androidx.room:room-ktx:$room_version") // 支持协程
-    ksp("androidx.room:room-compiler:$room_version")
+    implementation("androidx.room:room-runtime:$roomVersion")
+    implementation("androidx.room:room-ktx:$roomVersion") // 支持协程
+    ksp("androidx.room:room-compiler:$roomVersion")
     // Hilt 依赖
-    implementation("com.google.dagger:hilt-android:$hilt_version")
-    ksp("com.google.dagger:hilt-compiler:$hilt_version")
+    implementation("com.google.dagger:hilt-android:$hiltVersion")
+    ksp("com.google.dagger:hilt-compiler:$hiltVersion")
     // Compose 中使用 Hilt ViewModel 必须的依赖
     implementation("androidx.hilt:hilt-navigation-compose:1.2.0")
     //Navigation
@@ -81,4 +79,5 @@ dependencies {
     implementation(libs.androidx.material.icons.extended)
     // 添加 Capturable 截图库
     implementation("dev.shreyaspatil:capturable:2.1.0")
+
 }

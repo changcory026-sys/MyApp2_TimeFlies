@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">逝者如斯夫</string>
+    <string name="app_name">人生</string>
     <string name="default_life_consumed_text">今天的生命将耗在何方？</string>
     <string name="default_event_selection">I am what I choose to become:</string>
     <string name="where_time_fly">生命所在：</string>
@@ -47,4 +47,17 @@
     <string name="popup_label_event">事项：</string>
     <string name="popup_label_cost">耗时：</string>
     <string name="popup_label_total">今日累计：</string>
+
+    <!-- 事项编辑/新增弹窗 -->
+    <string name="dialog_title_edit">编辑事项</string>
+    <string name="dialog_title_add">新增事项</string>
+    <string name="dialog_label_event_name">事项名称</string>
+    <string name="dialog_label_time_slot">时段</string>
+    <string name="dialog_label_cost_time">时长(H)</string>
+    <string name="dialog_hint_select_event">请选择事项</string>
+    <string name="dialog_hint_input_time_slot">请输入时段(8-23)</string>
+    <string name="dialog_hint_input_cost_time">请输入时长</string>
+    <string name="dialog_button_cancel">取消</string>
+    <string name="dialog_button_confirm">确认</string>
+    <string name="label_edit">编辑</string>
 </resources>

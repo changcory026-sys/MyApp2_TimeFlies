@@ -64,6 +64,9 @@ interface TimeFliesDao {
     @Query("DELETE FROM event_record_table WHERE id = :recordId")
     suspend fun deleteRecordById(recordId: Long)
 
+    @Query("SELECT * FROM event_record_table WHERE id = :recordId LIMIT 1")
+    suspend fun getRecordById(recordId: Long): EventRecordEntity?
+
     @Transaction
     @Query("""
         SELECT * FROM event_record_table

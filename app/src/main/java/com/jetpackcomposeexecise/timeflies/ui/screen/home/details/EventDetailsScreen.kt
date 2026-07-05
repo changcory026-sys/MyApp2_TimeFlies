@@ -11,7 +11,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,6 +27,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.jetpackcomposeexecise.timeflies.R
+import com.jetpackcomposeexecise.timeflies.data.local.entity.EventEntity
+import kotlinx.coroutines.launch
 import java.util.Locale
 import kotlin.math.roundToInt
 
@@ -36,6 +40,8 @@ fun EventDetailsScreen(
     viewModel: EventDetailsViewModel = hiltViewModel()
 ) {
     val uiState = viewModel.uiState
+    var showAddDialog by remember { mutableStateOf(false) }
+    var editingEvent by remember { mutableStateOf<DetailedEvent?>(null) }
 
     Scaffold(
         containerColor = Color.White,
@@ -60,6 +66,13 @@ fun EventDetailsScreen(
                     containerColor = Color.White
                 )
             )
+        },
+        floatingActionButton = {
+            ExtendedFloatingActionButton(
+                onClick = { showAddDialog = true },
+                text = { Text(stringResource(R.string.dialog_title_add)) },
+                icon = { Icon(Icons.Default.Add, null) }
+            )
         }
     ) { innerPadding ->
         Column(
@@ -67,7 +80,6 @@ fun EventDetailsScreen(
                 .fillMaxSize()
                 .padding(innerPadding)
         ) {
-            // 日期显示
             Text(
                 text = uiState.date,
                 modifier = Modifier.padding(16.dp),
@@ -87,12 +99,12 @@ fun EventDetailsScreen(
                 ) {
                     items(
                         items = uiState.events,
-                        // 修改：使用 EventRecordEntity 的主键 id 作为唯一 key，解决重复 Key 导致的崩溃问题
                         key = { it.record.record.id }
                     ) { item ->
-                        SwipeToDeleteEventItem(
+                        SwipeToEditDeleteEventItem(
                             event = item,
-                            onDelete = { viewModel.deleteRecord(item) }
+                            onDelete = { viewModel.deleteRecord(item) },
+                            onEdit = { editingEvent = item }
                         )
                         HorizontalDivider(
                             modifier = Modifier.padding(horizontal = 16.dp),
@@ -104,17 +116,193 @@ fun EventDetailsScreen(
             }
         }
     }
+
+    val scope = rememberCoroutineScope()
+    if (showAddDialog) {
+        EventRecordDialog(
+            title = stringResource(R.string.dialog_title_add),
+            allEvents = uiState.allEvents,
+            initialEventName = "",
+            initialTimeSlot = 8,
+            initialCostTime = 1.0,
+            onConfirm = { eventName, timeSlot, costTime ->
+                scope.launch { viewModel.addRecord(uiState.date, eventName, timeSlot, costTime) }
+                showAddDialog = false
+            },
+            onDismiss = { showAddDialog = false }
+        )
+    }
+
+    editingEvent?.let { event ->
+        EventRecordDialog(
+            title = stringResource(R.string.dialog_title_edit),
+            allEvents = uiState.allEvents,
+            initialEventName = event.record.eventDetails.event,
+            initialTimeSlot = event.record.record.timeSlot,
+            initialCostTime = event.record.record.costTime,
+            onConfirm = { eventName, timeSlot, costTime ->
+                scope.launch { viewModel.editRecord(event.record.record.id, eventName, timeSlot, costTime) }
+                editingEvent = null
+            },
+            onDismiss = { editingEvent = null }
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EventRecordDialog(
+    title: String,
+    allEvents: List<EventEntity>,
+    initialEventName: String,
+    initialTimeSlot: Int,
+    initialCostTime: Double,
+    onConfirm: (eventName: String, timeSlot: Int, costTime: Double) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val timeSlotOptions = (7..23).toList()
+    val costTimeOptions = (1..10).map { it / 10.0 }
+
+    fun formatTimeSlotLabel(slot: Int): String {
+        val end = if (slot == 23) 24 else slot + 1
+        return "${slot}:00 - ${end}:00"
+    }
+
+    var selectedEventName by remember { mutableStateOf(initialEventName) }
+    var selectedTimeSlot by remember { mutableIntStateOf(initialTimeSlot.coerceIn(7, 23)) }
+    var selectedCostTime by remember { mutableDoubleStateOf(initialCostTime.coerceIn(0.1, 1.0)) }
+    var eventExpanded by remember { mutableStateOf(false) }
+    var timeSlotExpanded by remember { mutableStateOf(false) }
+    var costTimeExpanded by remember { mutableStateOf(false) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(title) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                // 事项名称下拉框
+                ExposedDropdownMenuBox(
+                    expanded = eventExpanded,
+                    onExpandedChange = { eventExpanded = it }
+                ) {
+                    OutlinedTextField(
+                        value = selectedEventName,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text(stringResource(R.string.dialog_label_event_name)) },
+                        placeholder = { Text(stringResource(R.string.dialog_hint_select_event)) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = eventExpanded) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true)
+                    )
+                    ExposedDropdownMenu(
+                        expanded = eventExpanded,
+                        onDismissRequest = { eventExpanded = false }
+                    ) {
+                        allEvents.forEach { event ->
+                            DropdownMenuItem(
+                                text = { Text(event.event) },
+                                onClick = {
+                                    selectedEventName = event.event
+                                    eventExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                // 时段下拉框
+                ExposedDropdownMenuBox(
+                    expanded = timeSlotExpanded,
+                    onExpandedChange = { timeSlotExpanded = it }
+                ) {
+                    OutlinedTextField(
+                        value = formatTimeSlotLabel(selectedTimeSlot),
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text(stringResource(R.string.dialog_label_time_slot)) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = timeSlotExpanded) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true)
+                    )
+                    ExposedDropdownMenu(
+                        expanded = timeSlotExpanded,
+                        onDismissRequest = { timeSlotExpanded = false }
+                    ) {
+                        timeSlotOptions.forEach { slot ->
+                            DropdownMenuItem(
+                                text = { Text(formatTimeSlotLabel(slot)) },
+                                onClick = {
+                                    selectedTimeSlot = slot
+                                    timeSlotExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+
+                // 时长下拉框
+                ExposedDropdownMenuBox(
+                    expanded = costTimeExpanded,
+                    onExpandedChange = { costTimeExpanded = it }
+                ) {
+                    OutlinedTextField(
+                        value = String.format(Locale.getDefault(), "%.1fH", selectedCostTime),
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text(stringResource(R.string.dialog_label_cost_time)) },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = costTimeExpanded) },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true)
+                    )
+                    ExposedDropdownMenu(
+                        expanded = costTimeExpanded,
+                        onDismissRequest = { costTimeExpanded = false }
+                    ) {
+                        costTimeOptions.forEach { cost ->
+                            DropdownMenuItem(
+                                text = { Text(String.format(Locale.getDefault(), "%.1fH", cost)) },
+                                onClick = {
+                                    selectedCostTime = cost
+                                    costTimeExpanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    if (selectedEventName.isBlank()) return@TextButton
+                    onConfirm(selectedEventName, selectedTimeSlot, selectedCostTime)
+                }
+            ) {
+                Text(stringResource(R.string.dialog_button_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.dialog_button_cancel))
+            }
+        }
+    )
 }
 
 @Composable
-fun SwipeToDeleteEventItem(
+fun SwipeToEditDeleteEventItem(
     event: DetailedEvent,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onEdit: () -> Unit
 ) {
     var offsetX by remember { mutableFloatStateOf(0f) }
     val animatedOffset by animateFloatAsState(targetValue = offsetX, label = "swipe_offset")
     val density = LocalDensity.current
-    val actionWidth = with(density) { 80.dp.toPx() } // 删除按钮的宽度
+    val actionWidth = with(density) { 160.dp.toPx() }
 
     Box(
         modifier = Modifier
@@ -122,27 +310,39 @@ fun SwipeToDeleteEventItem(
             .height(IntrinsicSize.Min)
             .background(Color.White)
     ) {
-        // 底层操作区 (删除按钮)
-        Box(
+        Row(
             modifier = Modifier
                 .align(Alignment.CenterEnd)
-                .fillMaxHeight()
-                .width(80.dp)
-                .background(Color.Red.copy(alpha = 0.8f))
-                .clickable {
-                    offsetX = 0f // 重置位置
-                    onDelete()
-                },
-            contentAlignment = Alignment.Center
+                .fillMaxHeight(),
         ) {
-            Icon(
-                imageVector = Icons.Default.Delete,
-                contentDescription = stringResource(R.string.label_delete),
-                tint = Color.White
-            )
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .width(80.dp)
+                    .background(Color.Gray.copy(alpha = 0.8f))
+                    .clickable {
+                        offsetX = 0f
+                        onEdit()
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.Edit, stringResource(R.string.label_edit), tint = Color.White)
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .width(80.dp)
+                    .background(Color.Red.copy(alpha = 0.8f))
+                    .clickable {
+                        offsetX = 0f
+                        onDelete()
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(Icons.Default.Delete, stringResource(R.string.label_delete), tint = Color.White)
+            }
         }
 
-        // 上层内容区
         Box(
             modifier = Modifier
                 .offset { IntOffset(animatedOffset.roundToInt(), 0) }
@@ -151,12 +351,10 @@ fun SwipeToDeleteEventItem(
                 .draggable(
                     orientation = Orientation.Horizontal,
                     state = rememberDraggableState { delta ->
-                        // 限制滑动范围：只能向左滑出 actionWidth 宽度
                         val newOffset = (offsetX + delta).coerceIn(-actionWidth, 0f)
                         offsetX = newOffset
                     },
                     onDragStopped = {
-                        // 超过一半宽度则固定展开，否则收回
                         offsetX = if (offsetX < -actionWidth / 2) -actionWidth else 0f
                     }
                 )

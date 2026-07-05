@@ -7,6 +7,7 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
+import com.jetpackcomposeexecise.timeflies.data.local.entity.EventEntity
 import com.jetpackcomposeexecise.timeflies.data.local.model.EventWithCost
 import com.jetpackcomposeexecise.timeflies.data.local.repository.TimeFliesRepository
 import com.jetpackcomposeexecise.timeflies.ui.navigation.EventDetailsScreenRoute
@@ -24,7 +25,8 @@ data class DetailedEvent(
 data class EventDetailsUiState(
     val date: String = "",
     val events: List<DetailedEvent> = emptyList(),
-    val totalHours: Double = 0.0
+    val totalHours: Double = 0.0,
+    val allEvents: List<EventEntity> = emptyList()
 )
 
 @HiltViewModel
@@ -40,6 +42,7 @@ class EventDetailsViewModel @Inject constructor(
 
     init {
         observeDetails()
+        observeAllEvents()
     }
 
     private fun observeDetails() {
@@ -47,15 +50,15 @@ class EventDetailsViewModel @Inject constructor(
             repository.getDateWithEvents(uiState.date).collectLatest { dateWithEvents ->
                 val rawEvents = dateWithEvents?.events ?: emptyList()
                 val total = rawEvents.sumOf { it.record.costTime }
-                
-                // 详情页展示的是“子耗时”，即每一条记录
+
+                // 详情页展示的是”子耗时”，即每一条记录
                 val detailedEvents = rawEvents.map { event ->
                     DetailedEvent(
                         record = event,
                         timeRange = formatTimeSlot(event.record.timeSlot),
                         percentage = if (total > 0) (event.record.costTime / total * 100).toInt() else 0
                     )
-                }.sortedByDescending { it.record.record.id } // 按记录顺序倒序（最新的在前）
+                }.sortedWith(compareBy({ it.record.record.timeSlot }, { it.record.record.id }))
 
                 uiState = uiState.copy(
                     events = detailedEvents,
@@ -63,6 +66,24 @@ class EventDetailsViewModel @Inject constructor(
                 )
             }
         }
+    }
+
+    private fun observeAllEvents() {
+        viewModelScope.launch {
+            repository.getAllEvents().collectLatest { events ->
+                uiState = uiState.copy(allEvents = events)
+            }
+        }
+    }
+
+    suspend fun updateRecord(recordId: Long, newEventId: Long, newTimeSlot: Int, newCostTime: Double) {
+        // 根据现有记录逻辑，我们其实需要一个对应的实体来更新，
+        // 这里假设我们在 ViewModel 中持有的 event 中有足够信息或者通过 repository 获取
+        repository.updateEventRecord(recordId, newEventId, newTimeSlot, newCostTime)
+    }
+
+    suspend fun addRecord(dateString: String, eventName: String, timeSlot: Int, costTime: Double) {
+        repository.saveEventRecord(dateString, eventName, timeSlot, costTime)
     }
 
     private fun formatTimeSlot(slot: Int): String {
@@ -73,8 +94,14 @@ class EventDetailsViewModel @Inject constructor(
 
     fun deleteRecord(event: DetailedEvent) {
         viewModelScope.launch {
-            // 使用新增的主键 ID 删除具体的子耗时记录
             repository.deleteEventRecordById(event.record.record.id)
+        }
+    }
+
+    fun editRecord(recordId: Long, eventName: String, timeSlot: Int, costTime: Double) {
+        viewModelScope.launch {
+            val eventId = uiState.allEvents.find { it.event == eventName }?.id ?: return@launch
+            repository.updateEventRecord(recordId, eventId, timeSlot, costTime)
         }
     }
 }

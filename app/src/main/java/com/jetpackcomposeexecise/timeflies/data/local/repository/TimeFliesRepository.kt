@@ -122,6 +122,13 @@ class TimeFliesRepository @Inject constructor(
         timeFliesDao.deleteRecordById(recordId)
     }
 
+    suspend fun updateEventRecord(recordId: Long, eventId: Long, timeSlot: Int, costTime: Double) {
+        val oldRecord = timeFliesDao.getRecordById(recordId) ?: return
+        timeFliesDao.insertOrUpdateRecord(
+            oldRecord.copy(eventId = eventId, timeSlot = timeSlot, costTime = costTime)
+        )
+    }
+
     // --- 时间段统计查询 ---
     fun getTimeSlotsByDate(dateString: String): Flow<List<TimeSlotWithEvent>> =
         timeFliesDao.getTimeSlotsByDate(dateString)

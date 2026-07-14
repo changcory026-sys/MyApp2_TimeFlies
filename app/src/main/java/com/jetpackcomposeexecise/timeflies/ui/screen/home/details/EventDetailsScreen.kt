@@ -123,8 +123,8 @@ fun EventDetailsScreen(
             title = stringResource(R.string.dialog_title_add),
             allEvents = uiState.allEvents,
             initialEventName = "",
-            initialTimeSlot = 8,
-            initialCostTime = 1.0,
+            initialTimeSlot = null,
+            initialCostTime = null,
             onConfirm = { eventName, timeSlot, costTime ->
                 scope.launch { viewModel.addRecord(uiState.date, eventName, timeSlot, costTime) }
                 showAddDialog = false
@@ -155,13 +155,13 @@ private fun EventRecordDialog(
     title: String,
     allEvents: List<EventEntity>,
     initialEventName: String,
-    initialTimeSlot: Int,
-    initialCostTime: Double,
+    initialTimeSlot: Int?,
+    initialCostTime: Double?,
     onConfirm: (eventName: String, timeSlot: Int, costTime: Double) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val timeSlotOptions = (7..23).toList()
-    val costTimeOptions = (1..10).map { it / 10.0 }
+    val timeSlotOptions = (0..23).toList()
+    val costTimeOptions = (0..10).map { it / 10.0 }
 
     fun formatTimeSlotLabel(slot: Int): String {
         val end = if (slot == 23) 24 else slot + 1
@@ -169,11 +169,12 @@ private fun EventRecordDialog(
     }
 
     var selectedEventName by remember { mutableStateOf(initialEventName) }
-    var selectedTimeSlot by remember { mutableIntStateOf(initialTimeSlot.coerceIn(7, 23)) }
-    var selectedCostTime by remember { mutableDoubleStateOf(initialCostTime.coerceIn(0.1, 1.0)) }
+    var selectedTimeSlot by remember { mutableStateOf<Int?>(initialTimeSlot?.coerceIn(0, 23)) }
+    var selectedCostTime by remember { mutableStateOf<Double?>(initialCostTime?.coerceIn(0.0, 1.0)) }
     var eventExpanded by remember { mutableStateOf(false) }
     var timeSlotExpanded by remember { mutableStateOf(false) }
     var costTimeExpanded by remember { mutableStateOf(false) }
+    // Removed timeSlotListState definition
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -194,7 +195,7 @@ private fun EventRecordDialog(
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = eventExpanded) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true)
+                            .menuAnchor()
                     )
                     ExposedDropdownMenu(
                         expanded = eventExpanded,
@@ -218,14 +219,15 @@ private fun EventRecordDialog(
                     onExpandedChange = { timeSlotExpanded = it }
                 ) {
                     OutlinedTextField(
-                        value = formatTimeSlotLabel(selectedTimeSlot),
+                        value = selectedTimeSlot?.let { formatTimeSlotLabel(it) } ?: "",
                         onValueChange = {},
                         readOnly = true,
                         label = { Text(stringResource(R.string.dialog_label_time_slot)) },
+                        placeholder = { Text(stringResource(R.string.dialog_hint_input_time_slot)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = timeSlotExpanded) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true)
+                            .menuAnchor()
                     )
                     ExposedDropdownMenu(
                         expanded = timeSlotExpanded,
@@ -249,14 +251,15 @@ private fun EventRecordDialog(
                     onExpandedChange = { costTimeExpanded = it }
                 ) {
                     OutlinedTextField(
-                        value = String.format(Locale.getDefault(), "%.1fH", selectedCostTime),
+                        value = selectedCostTime?.let { String.format(Locale.getDefault(), "%.1fH", it) } ?: "",
                         onValueChange = {},
                         readOnly = true,
                         label = { Text(stringResource(R.string.dialog_label_cost_time)) },
+                        placeholder = { Text(stringResource(R.string.dialog_hint_input_cost_time)) },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = costTimeExpanded) },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true)
+                            .menuAnchor()
                     )
                     ExposedDropdownMenu(
                         expanded = costTimeExpanded,
@@ -278,8 +281,11 @@ private fun EventRecordDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    if (selectedEventName.isBlank()) return@TextButton
-                    onConfirm(selectedEventName, selectedTimeSlot, selectedCostTime)
+                    val eventName = selectedEventName
+                    val timeSlot = selectedTimeSlot
+                    val costTime = selectedCostTime
+                    if (eventName.isBlank() || timeSlot == null || costTime == null) return@TextButton
+                    onConfirm(eventName, timeSlot, costTime)
                 }
             ) {
                 Text(stringResource(R.string.dialog_button_confirm))
@@ -307,7 +313,7 @@ fun SwipeToEditDeleteEventItem(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(IntrinsicSize.Min)
+            .height(80.dp) // Replaced IntrinsicSize.Min with a fixed height
             .background(Color.White)
     ) {
         Row(
@@ -347,6 +353,7 @@ fun SwipeToEditDeleteEventItem(
             modifier = Modifier
                 .offset { IntOffset(animatedOffset.roundToInt(), 0) }
                 .fillMaxWidth()
+                .fillMaxHeight()
                 .background(Color.White)
                 .draggable(
                     orientation = Orientation.Horizontal,

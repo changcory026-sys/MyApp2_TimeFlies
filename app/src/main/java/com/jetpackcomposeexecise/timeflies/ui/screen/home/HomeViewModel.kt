@@ -28,7 +28,7 @@ import kotlin.math.round
 
 data class HomeUiState(
     val selectedDate: LocalDate = LocalDate.now(),
-    val dateList: List<LocalDate> = (-3..3).map { LocalDate.now().plusDays(it.toLong()) },
+    val dateList: List<LocalDate> = (0..30).map { LocalDate.now().minusDays(it.toLong()) },
     val eventRecords: List<EventWithCost> = emptyList(),
     val lifeConsumedText: String? = null,
     val currentTimeDisplay: String = "",
@@ -60,10 +60,10 @@ class HomeViewModel @Inject constructor(
     private var sessionJob: Job? = null
 
     init {
-        uiState = uiState.copy(currentTimeDisplay = formatTime(LocalTime.now()))
+        uiState = uiState.copy(currentTimeDisplay = formatTime(LocalTime.now()), selectedDate = LocalDate.now())
         startClock()
         observeEvents()
-        observeRecords(uiState.selectedDate)
+        observeRecords(LocalDate.now())
         observeTimerSession()
     }
 

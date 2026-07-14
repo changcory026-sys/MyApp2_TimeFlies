@@ -17,14 +17,17 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.zIndex
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -116,44 +119,57 @@ fun HomeScreenContext(
             Spacer(modifier = Modifier.height(24.dp))
 
             // 顶部导航与日期
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = onNavigateToManager) {
-                    Icon(Icons.Default.Menu, contentDescription = stringResource(R.string.cd_menu))
-                }
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = onNavigateToManager) {
+                        Icon(Icons.Default.Menu, contentDescription = stringResource(R.string.cd_menu))
+                    }
 
-                Box {
-                    TextButton(onClick = { dateExpanded = true }) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = selectedDate.toString(),
-                                fontSize = 24.sp,
-                                color = Color.Black
-                            )
-                            Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                    Box {
+                        TextButton(onClick = { dateExpanded = true }) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = selectedDate.toString(),
+                                    fontSize = 24.sp,
+                                    color = Color.Black
+                                )
+                                Icon(Icons.Default.ArrowDropDown, contentDescription = null)
+                            }
+                        }
+                        DropdownMenu(
+                            expanded = dateExpanded,
+                            onDismissRequest = { dateExpanded = false },
+                            modifier = Modifier
+                                .heightIn(max = (LocalConfiguration.current.screenHeightDp / 3).dp)
+                                .width(IntrinsicSize.Min),
+                            offset = DpOffset(10.dp, 4.dp)
+                        ) {
+                            dateList.forEach { date ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Text(
+                                            text = if (date == LocalDate.now()) "${date}${stringResource(R.string.today_label)}" else date.toString(),
+                                            modifier = Modifier.fillMaxWidth(),
+                                            textAlign = TextAlign.Center,
+                                            fontSize = 16.sp
+                                        )
+                                    },
+                                    onClick = {
+                                        onDateSelected(date)
+                                        dateExpanded = false
+                                    }
+                                )
+                            }
                         }
                     }
-                    DropdownMenu(
-                        expanded = dateExpanded,
-                        onDismissRequest = { dateExpanded = false }
-                    ) {
-                        dateList.forEach { date ->
-                            DropdownMenuItem(
-                                text = { Text(date.toString()) },
-                                onClick = {
-                                    onDateSelected(date)
-                                    dateExpanded = false
-                                }
-                            )
-                        }
-                    }
-                }
 
-                IconButton(onClick = { onNavigateToStatistics(selectedDate) }) {
-                    Icon(Icons.Default.BarChart, contentDescription = stringResource(R.string.cd_statistics))
+                    IconButton(onClick = { onNavigateToStatistics(selectedDate) }) {
+                        Icon(Icons.Default.BarChart, contentDescription = stringResource(R.string.cd_statistics))
+                    }
                 }
             }
 
